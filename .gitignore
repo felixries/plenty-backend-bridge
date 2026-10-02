@@ -1,0 +1,13 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Secrets (niemals committen)
+.env
+*.key
+
+# Arbeitsanweisungen (nicht Teil des Plugins)
+CLAUDE.md

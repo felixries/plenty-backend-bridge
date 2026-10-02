@@ -1,0 +1,20 @@
+{
+  "name": "BackendBridge",
+  "marketplaceName": {
+    "de": "Eigene Artikel-UI by felixries.de",
+    "en": "Custom Item UI by felixries.de"
+  },
+  "description": "Fügt einen Menüpunkt unter Start » Individuelles Backend hinzu, über den man individuelle Inhalte anzeigen kann.",
+  "namespace": "BackendBridge",
+  "author": "Felix Ries",
+  "type": "backend",
+  "serviceProvider": "BackendBridge\\Providers\\BackendBridgeServiceProvider",
+  "version": "1.0.0",
+  "license": "MIT",
+  "keywords": [
+    "backend",
+    "ui",
+    "bridge",
+    "rest"
+  ]
+}

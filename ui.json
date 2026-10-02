@@ -1,0 +1,12 @@
+{
+  "defaultEntryPoint": "bridge-1-0-0.html",
+  "namespace": "BackendBridge",
+  "menuEntries": [
+    {
+      "label": "Individuelles Backend",
+      "menu": "start",
+      "urlKey": "individuelles-backend",
+      "entryPoint": "bridge-1-0-0.html"
+    }
+  ]
+}
