@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Individuelles Backend</title>
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; color: #002848; }
+    #bb-gear { position: fixed; right: 16px; bottom: 16px; z-index: 2147483000; width: 40px; height: 40px; border-radius: 50%; border: 1px solid #c9d3de; background: #ffffff; color: #5a6b7b; font-size: 19px; line-height: 1; cursor: pointer; box-shadow: 0 2px 10px rgba(0,40,72,.15); opacity: .75; }
+    #bb-gear:hover, #bb-gear:focus-visible { opacity: 1; color: #002848; border-color: #002848; }
+    .bb-lead { font-size: 17px; font-weight: 700; color: #002848; margin: 0 0 12px; }
+    .bb-big { font-size: 16px; padding: 14px 22px; }
+    .bb-disc { margin-top: 18px; padding-top: 12px; border-top: 1px solid #dbe4ee; font-size: 12.5px; color: #5a6b7b; }
+    .bb-warn { margin: 0 0 14px; padding: 10px 12px; border-radius: 6px; background: #fff4d6; border: 1px solid #F8B810; color: #4a3500; font-size: 13.5px; }
+    #root { padding: 24px; }
+    .bb-box { max-width: 760px; border: 1px solid #dbe4ee; border-radius: 10px; overflow: hidden; background: #fff; }
+    .bb-box h1 { margin: 0; padding: 20px 24px; background: #002848; color: #fff; font-size: 19px; font-weight: 600; }
+    .bb-body { padding: 20px 24px; font-size: 14px; line-height: 1.6; }
+    .bb-body p { margin: 0 0 12px; }
+    .bb-body textarea { width: 100%; box-sizing: border-box; min-height: 220px; font: 12.5px/1.5 Menlo, Consolas, monospace; padding: 10px; border: 1px solid #c9d3de; border-radius: 6px; background: #000; color: #e6edf3; resize: vertical; }
+    .bb-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+    .bb-btn { font: 600 14px/1 -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 10px 16px; border-radius: 6px; border: 0; background: #D81E24; color: #fff; cursor: pointer; }
+    .bb-btn[disabled] { opacity: .5; cursor: not-allowed; }
+    .bb-ghost { background: #fff; color: #002848; border: 1px solid #c9d3de; }
+    .bb-status { margin-top: 14px; font-size: 13.5px; }
+    .bb-status li { margin-bottom: 4px; }
+    .bb-ok { color: #1d7a46; font-weight: 600; }
+    .bb-err { color: #D81E24; font-weight: 600; }
+    .bb-hint { margin-top: 16px; padding-top: 12px; border-top: 1px solid #dbe4ee; font-size: 12.5px; color: #5a6b7b; }
+    .bb-hint code, .bb-body code { background: #f4f7fa; padding: 1px 5px; border-radius: 4px; font-size: 12px; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <div id="bb-hinweis" style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:0;padding:9px 14px;background:#002848;color:#ffffff;font:14px/1.45 -apple-system,Segoe UI,Roboto,Arial,sans-serif;"><span>Du willst mehr mit KI in deinem Onlinehandel machen? Melde dich bei Felix Ries</span><a href="https://calendly.com/felixries/ki-entlastungscheck" target="_blank" rel="noopener" style="color:#F8B810;font-weight:700;text-decoration:none;">Termin buchen &raquo;</a></div>
+  <!-- =====================================================================
+       BackendBridge-Shell.
+
+       Aufgabe: den Access-Token aus der Backend-Session holen, die in der
+       Plugin-Konfiguration hinterlegte Bundle-URL lesen und das Bundle
+       laden. Dazu ein eingebauter Installer: Code einfuegen, die Shell
+       laedt ihn same-origin in den Webspace und traegt die bundleUrl ein.
+       Hochladen kann damit nur, wer im Backend angemeldet ist und die
+       noetigen Rechte hat.
+
+       Diese Datei ist bewusst endgueltig. Plugin-Dateien werden mit
+       max-age=604800 ausgeliefert (7 Tage Client-Cache, nicht beeinflussbar)
+       und neue Dateien brauchen einen Plugin-Set-Build.
+       ===================================================================== -->
+
+  <button type="button" id="bb-gear" title="Maske aktualisieren (nur für Administratoren)" aria-label="Maske aktualisieren (nur für Administratoren)" hidden>&#9881;</button>
+  <div id="root"></div>
+
+  <script>
+    // Belegt am Live: der gueltige Backend-Token liegt als roher String unter
+    // localStorage['accessToken']. Danebenliegende Eintraege geben alle 401.
+    function findToken() {
+      var stores = [];
+      try { stores.push(window.localStorage); } catch (e) {}
+      try { if (window.parent && window.parent !== window) stores.push(window.parent.localStorage); } catch (e) {}
+      try { if (window.top && window.top !== window) stores.push(window.top.localStorage); } catch (e) {}
+      for (var i = 0; i < stores.length; i++) {
+        try { var t = stores[i].getItem('accessToken'); if (t) return t; } catch (e) {}
+      }
+      return null;
+    }
+
+    window.PlentyBridge = {
+      version: 3,
+      getToken: findToken,
+      // Ansicht merken (z.B. geöffneter Artikel, Tab, Filter), überlebt ein Neuladen im selben Tab
+      loadState: function () { try { var v = sessionStorage.getItem('bb-ansicht'); return v ? JSON.parse(v) : null; } catch (e) { return null; } },
+      saveState: function (obj) { try { var v = JSON.stringify(obj); if (v.length < 20000) sessionStorage.setItem('bb-ansicht', v); } catch (e) {} },
+      // fetchRest(pfad, opts) -> Promise<{ok, status, data}>. Wirft nie.
+      fetchRest: function (pfad, opts) {
+        opts = opts || {};
+        var headers = Object.assign({ Accept: 'application/json' }, opts.headers || {});
+        var t = findToken();
+        if (t) headers.Authorization = 'Bearer ' + t;
+        var url = pfad.indexOf('http') === 0 ? pfad : ('/rest' + pfad);
+        return fetch(url, {
+          method: opts.method || 'GET', headers: headers,
+          body: opts.body || undefined, cache: 'no-store'
+        }).then(function (res) {
+          return res.text().then(function (txt) {
+            var data; try { data = JSON.parse(txt); } catch (e) { data = txt; }
+            return { ok: res.ok, status: res.status, data: data };
+          });
+        }).catch(function (e) { return { ok: false, status: 0, data: String(e) }; });
+      }
+    };
+
+
+    var B = window.PlentyBridge, ids = null, aktuelleUrl = null;
+    var KEY = 'backend-bridge/maske.js';
+
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+    // Set-ID und Namespace stehen im eigenen Auslieferungspfad:
+    //   /plenty/ui-plugin/{hash}/plugin/{setId}/{namespace}/ui/{datei}
+    // Die Plugin-ID liefert /rest/plugins/ui (case-insensitiver Namespace-Match).
+    function ermittleIds() {
+      var treffer = window.location.pathname.match(/\/plugin\/(\d+)\/([^\/]+)\//);
+      if (!treffer) return Promise.resolve({ fehler: 'Set-ID nicht im Pfad: ' + window.location.pathname });
+      var setId = treffer[1], namespace = treffer[2].toLowerCase();
+      return B.fetchRest('/plugins/ui').then(function (r) {
+        if (!r.ok) return { fehler: 'GET /rest/plugins/ui gab HTTP ' + r.status };
+        var eigen = null;
+        Object.keys(r.data || {}).forEach(function (k) {
+          var e = r.data[k];
+          if (e && String(e.namespace || k).toLowerCase() === namespace) eigen = e;
+        });
+        if (!eigen || !eigen.pluginId) return { fehler: 'Eigener Plugin-Eintrag nicht gefunden' };
+        return { pluginId: eigen.pluginId, setId: setId };
+      });
+    }
+
+    function ladeKonfiguration() {
+      return ermittleIds().then(function (r) {
+        if (r.fehler) return r;
+        ids = r;
+        return B.fetchRest('/plugins/' + ids.pluginId + '/plugin_sets/' + ids.setId + '/configurations').then(function (c) {
+          if (!c.ok) return { fehler: 'GET .../configurations gab HTTP ' + c.status };
+          var feld = (Array.isArray(c.data) ? c.data : []).filter(function (x) { return x.key === 'bundleUrl'; })[0];
+          var wert = feld && (feld.value || feld['default']);
+          return wert ? { url: wert } : { leer: true };
+        });
+      });
+    }
+
+    // ---------- Installer ----------
+    function zeigeInstaller(meldung) {
+      document.getElementById('bb-gear').hidden = true;
+      var root = document.getElementById('root');
+      root.innerHTML =
+        '<div class="bb-box"><h1>Neue Maske veröffentlichen</h1><div class="bb-body">' +
+        '<p class="bb-lead">Jetzt Code einfügen</p>' +
+        '<textarea id="bb-code" spellcheck="false" aria-label="Code der Maske" autofocus></textarea>' +
+        '<div class="bb-row">' +
+        '<button type="button" class="bb-btn bb-big" id="bb-go">Jetzt veröffentlichen</button>' +
+        (aktuelleUrl ? '<button type="button" class="bb-btn bb-ghost" id="bb-back">Abbrechen</button>' : '') +
+        '</div>' +
+        '<ul class="bb-status" id="bb-status"></ul>' +
+        '<div class="bb-disc">' +
+        (meldung ? '<p><span class="bb-err">Status:</span> ' + meldung + '</p>' : '') +
+        '<p><b>Achtung, nur für Administratoren.</b> Die neue Maske gilt sofort für alle Nutzer dieses Systems. ' +
+        'Teste neue Fassungen zuerst im Testsystem. Ohne Gewähr und ohne Support.</p>' +
+        '</div></div></div>';
+
+      var code = document.getElementById('bb-code');
+      setTimeout(function () { try { code.focus(); } catch (e) {} }, 50);
+      var back = document.getElementById('bb-back');
+      if (back) back.addEventListener('click', function () { starteMaske(aktuelleUrl); });
+      document.getElementById('bb-go').addEventListener('click', function () { veroeffentliche(code.value); });
+    }
+
+    // Kommt der Nutzer aus der Werkstatt (Link mit ?bb=veroeffentlichen oder #bb-veroeffentlichen),
+    // oeffnet sich das Einfuegefeld direkt, auch wenn schon eine Maske laeuft.
+    function willVeroeffentlichen() {
+      // Nach dem Veröffentlichen (oder Abbrechen) lädt die Seite neu: dann die Maske zeigen, nicht wieder das Einfügefeld.
+      try { if (sessionStorage.getItem('bb-maske-zeigen')) { sessionStorage.removeItem('bb-maske-zeigen'); return false; } } catch (e) {}
+      var orte = [window.location];
+      try { if (window.top && window.top.location) orte.push(window.top.location); } catch (e) {}
+      try { if (window.parent && window.parent.location) orte.push(window.parent.location); } catch (e) {}
+      for (var i = 0; i < orte.length; i++) {
+        try { if (/[?&#]bb[-=]veroeffentlichen\b/.test(String(orte[i].search || '') + String(orte[i].hash || ''))) return true; } catch (e) {}
+      }
+      return false;
+    }
+
+    function status(text, cls) {
+      var li = document.createElement('li'); if (cls) li.className = cls; li.textContent = text;
+      document.getElementById('bb-status').appendChild(li); return li;
+    }
+
+    function veroeffentliche(text) {
+      var btn = document.getElementById('bb-go'), liste = document.getElementById('bb-status');
+      liste.innerHTML = '';
+      text = String(text || '').trim();
+      if (text.length < 20) { status('Das Feld ist noch leer. Kopier den Code in der Werkstatt und füg ihn hier ein (Strg/Cmd + V).', 'bb-err'); return; }
+      if (/^\s*</.test(text)) { status('Das sieht nach HTML aus. Gebraucht wird die reine JavaScript-Datei (.js).', 'bb-err'); return; }
+      btn.disabled = true;
+      var schritt = status('Lade die Maske in den Webspace …');
+      var vorbereitung = ids ? Promise.resolve(ids) : ermittleIds();
+      vorbereitung.then(function (r) {
+        if (!r || r.fehler) throw new Error(r && r.fehler || 'Plugin nicht gefunden');
+        ids = r;
+        return B.fetchRest('/storage/frontend/file?key=' + encodeURIComponent(KEY), {
+          method: 'POST', headers: { 'Content-Type': 'application/javascript' }, body: text + '\n'
+        });
+      }).then(function (up) {
+        if (!up.ok || !up.data || !up.data.publicUrl) throw new Error('Upload in den Webspace ging nicht (HTTP ' + up.status + '). Fehlen deinem User Rechte für den Webspace?');
+        schritt.className = 'bb-ok'; schritt.textContent = 'Im Webspace gespeichert.';
+        schritt = status('Trage die Adresse im Plugin ein …');
+        return B.fetchRest('/plugins/' + ids.pluginId + '/plugin_sets/' + ids.setId + '/configurations', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify([{ key: 'bundleUrl', value: up.data.publicUrl }])
+        }).then(function (c) {
+          if (!c.ok) throw new Error('Eintragen der Adresse ging nicht (HTTP ' + c.status + '). Fehlen deinem User Rechte für Plugins?');
+          return up.data.publicUrl;
+        });
+      }).then(function (url) {
+        schritt.className = 'bb-ok'; schritt.textContent = 'Im Plugin eingetragen.';
+        status('Veröffentlicht. Deine neue Ansicht startet …', 'bb-ok');
+        aktuelleUrl = url;
+        setTimeout(function () { starteMaske(url); }, 700);
+      }).catch(function (e) {
+        schritt.className = 'bb-err'; schritt.textContent = e && e.message ? e.message : String(e);
+        btn.disabled = false;
+      });
+    }
+
+    // ---------- Maske laden ----------
+    function starteMaske(quelle) {
+      aktuelleUrl = quelle;
+      window.PlentyBridge.bundleUrl = quelle;
+      document.getElementById('bb-gear').hidden = false;
+      var root = document.getElementById('root');
+      if (root.childNodes.length) {
+        // Saubere Neuinitialisierung: die Seite neu laden statt ein zweites Bundle in denselben Kontext zu legen.
+        try { sessionStorage.setItem('bb-maske-zeigen', '1'); } catch (e) {}
+        window.location.reload();
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = quelle + (quelle.indexOf('?') > -1 ? '&' : '?') + 'v=' + Date.now();
+      s.onerror = function () {
+        zeigeInstaller('Die konfigurierte URL <code>' + esc(quelle) + '</code> ist nicht erreichbar. ' +
+          'Prüfe, ob sie stimmt, über HTTPS läuft und ein gültiges Zertifikat hat, oder veröffentliche die Maske hier neu.');
+      };
+      document.body.appendChild(s);
+    }
+
+    document.getElementById('bb-gear').addEventListener('click', function () { zeigeInstaller(); });
+
+    ladeKonfiguration().then(function (ergebnis) {
+      if (ergebnis.url && willVeroeffentlichen()) { aktuelleUrl = ergebnis.url; zeigeInstaller(); return; }
+      if (ergebnis.url) { starteMaske(ergebnis.url); return; }
+      zeigeInstaller(ergebnis.fehler || null);
+    });
+  </script>
+</body>
+</html>
