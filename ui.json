@@ -1,12 +1,12 @@
 {
-  "defaultEntryPoint": "bridge-r6.html",
+  "defaultEntryPoint": "bridge-r7.html",
   "namespace": "BackendBridge",
   "menuEntries": [
     {
       "label": "Individuelles Backend",
       "menu": "start",
       "urlKey": "individuelles-backend",
-      "entryPoint": "bridge-r6.html"
+      "entryPoint": "bridge-r7.html"
     }
   ]
 }
