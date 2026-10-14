@@ -1,0 +1,19 @@
+{
+  "formatVersion": 1,
+  "menu": {
+    "generalTab": {
+      "label": "Oberfläche",
+      "fullWidth": false,
+      "formFields": {
+        "bundleUrl": {
+          "type": "inputText",
+          "required": false,
+          "label": "URL deines UI-Bundles (HTTPS, .js-Datei)",
+          "options": {
+            "defaultValue": ""
+          }
+        }
+      }
+    }
+  }
+}
